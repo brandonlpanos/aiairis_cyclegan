@@ -6,15 +6,29 @@ from generator import Generator
 from dataset import create_loaders
 from discriminator import Discriminator
 import torch.optim.lr_scheduler as lr_scheduler
+
 '''
-We make use of autocast() and GradScaler() to speed up training and improve stability.
-Autocast() allows us to use mixed precision training, i.e., using both FP32 and FP16 operations.
-Autocast() matches the dtype to the operation (e.g., FP16 for matrix multiplication and FP32 for addition, etc.)
-GradScaler() scales the loss to prevent underflow and overflow.
-The Generators are ResNet-based (9 residual blocks) and the Discriminators are PatchGANs (70x70).
-The (70X70) PatchGANs are used to classify whether 70x70 overlapping patches in an image are real or fake.
-When passing an image to a discriminator, the discriminator outputs a (n x m) matrix, where each value represents the probability that the patch is real. if a value in the matrix is a 1, this means that the discriminator has judged that the corrsponding (70X70) patch from the input is real. 
+The training loop code can be summarized as follows:
+
+1. Device configuration: Checks if CUDA is available and sets the device accordingly.
+2. DataLoaders: Creates training and testing data loaders for the image translation task.
+3. Load Discriminators and Generators: Initializes the generator and discriminator models for both AIA and iris domains.
+4. Losses: Defines the adversarial loss using mean squared error (MSE) and the cycle-consistency loss using mean absolute error (L1 loss).
+5. Optimizers: Sets up Adam optimizers for both the generator and discriminator models.
+6. Gradient scaling: Uses gradient scaling with mixed precision to prevent underflow and improve stability during training.
+7. Learning rate schedulers: Configures learning rate schedulers for the generators and discriminators.
+8. Training loop: Iterates over epochs and batches to train the models.
+9. Discriminator training: Updates the discriminator parameters by calculating adversarial losses for both domains.
+10. Generator training: Updates the generator parameters by calculating adversarial losses and cycle-consistency losses.
+11. Print loss and plot results: Prints generator and discriminator losses and plots the translated images.
+12. Update learning rates: Updates the learning rates based on the schedulers.
+13. Save models: Saves the best-performing models based on generator loss.
+
+In the image translation task, the (70x70) PatchGANs play a crucial role in classifying whether overlapping patches in an image are real or fake. When an image is passed through the discriminator, it generates a (n x m) matrix. Each value in the matrix represents the probability that the corresponding (70x70) patch is real. A value of 1 indicates that the discriminator has determined the patch to be real.
+
+This PatchGAN architecture enables fine-grained analysis of the image, as it operates at the patch level rather than the entire image. By dividing the image into overlapping patches and evaluating their authenticity individually, the discriminator can provide detailed insights into the realism of different regions.
 '''
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # DataLoaders
