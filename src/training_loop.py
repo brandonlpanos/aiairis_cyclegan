@@ -79,7 +79,7 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
     for epoch in range(total_epochs):
         print(f"Epoch {epoch+1} of {total_epochs}")
         for batch, (aia, iris) in enumerate(train_loader):
-            name = batch
+            name = epoch*1000 + batch
             aia = aia.to(device)
             iris = iris.to(device)
             # Train Discriminators
