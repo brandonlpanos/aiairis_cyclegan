@@ -35,11 +35,7 @@ class Generator(nn.Module):
 
     def forward(self, x):
         '''Forward pass'''
-        output = self.generator(x)
-        # Resize output to match input
-        if x.shape != output.shape:
-            output = F.interpolate(output, size=x.shape[2:], mode='bilinear', align_corners=False)
-        return output
+        return self.generator(x)
 
 
 class ConvBlock(nn.Module):

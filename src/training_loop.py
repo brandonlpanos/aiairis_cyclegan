@@ -1,3 +1,4 @@
+import csv
 import torch
 import config
 from utils import quick_look_gen
@@ -29,10 +30,26 @@ In the image translation task, the (70x70) PatchGANs play a crucial role in clas
 This PatchGAN architecture enables fine-grained analysis of the image, as it operates at the patch level rather than the entire image. By dividing the image into overlapping patches and evaluating their authenticity individually, the discriminator can provide detailed insights into the realism of different regions.
 '''
 
+# Create a CSV file and write the header
+with open('../callbacks/losses.csv', 'w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Epoch', 'Cycle IRIS Loss', 'Cycle AIA Loss', 'Discrim Loss', 'Gen Loss', 'Gen AIA Loss', 'Gen IRIS Loss'])
+
+# Load some test images
+aia_test_data = np.load("../data/aia_test.npy", allow_pickle=True)
+iris_test_data = np.load("../data/iris_test.npy", allow_pickle=True)
+ind1 = 176
+ind2 = 11
+real_aia = np.squeeze(aia_test_data[ind1])
+real_iris = np.squeeze(iris_test_data[ind2])
+# Delete the arrays from memory
+del aia_test_data
+del iris_test_data
+
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # DataLoaders
-train_loader, test_loader = create_loaders(test_percent=0.2, batch_size=1, sdo_channels=['171'], iris_channel='1400')
+train_loader, test_loader = create_loaders()
 # Load Discriminators and Generators
 aia_generator = Generator(num_res_blocks=9).to(device)
 iris_generator = Generator(num_res_blocks=9).to(device)
@@ -61,6 +78,7 @@ total_epochs = config.NUM_EPOCHS
 for epoch in range(total_epochs):
     print(f"Epoch {epoch+1} of {total_epochs}")
     for batch, (aia, iris) in enumerate(train_loader):
+        name = batch
         aia = aia.to(device)
         iris = iris.to(device)
         # Train Discriminators
@@ -110,25 +128,23 @@ for epoch in range(total_epochs):
         generator_scalar.scale(generator_loss).backward(retain_graph=True)
         generator_scalar.step(gen_optimizer)
         generator_scalar.update()
-        # Print loss and Plot results 
-        if batch % 2 == 0:
+        # Save models, losses, and create images 
+        if batch % config.SAVE_AFTER_N_SAMP == 0:
+            torch.save(aia_generator.state_dict(), f'../callbacks/models/{name}_aia_generator.pth')
+            torch.save(iris_generator.state_dict(), f'../callbacks/models/{name}_iris_generator.pth')
+            torch.save(aia_discriminator.state_dict(), f'../callbacks/models/{name}_aia_discriminator.pth')
+            torch.save(iris_discriminator.state_dict(), f'../callbacks/models/{name}_iris_discriminator.pth')
             print(f"Generator loss: {generator_loss:.4f}, Discriminator loss: {discriminator_loss:.4f}")
+            row = [name, cycle_iris_loss, cycle_aia_loss, discriminator_loss, generator_loss, aia_generator_loss, iris_generator_loss]
+            writer.writerow(row)
             with torch.no_grad():
-                real_iris, real_aia = next(iter(test_loader))
-                fake_iris = iris_generator(aia)
-                fake_aia = aia_generator(iris)
-                real_iris = real_iris.detach().numpy().squeeze()
-                real_aia = real_aia.detach().numpy().squeeze()
-                fake_iris = fake_iris.detach().numpy().squeeze()
-                fake_aia = fake_aia.detach().numpy().squeeze()
-                quick_look_gen(real_aia, real_iris, fake_iris, fake_aia, savename=str(batch))
+                fake_iris1 = iris_generator(real_aia).detach().numpy().squeeze()
+                fake_aia1 = aia_generator(fake_iris1).detach().numpy().squeeze()
+                fake_aia2 = aia_generator(real_iris).detach().numpy().squeeze()
+                fake_iris2 = iris_generator(fake_aia2).detach().numpy().squeeze()
+                quick_look_gen(real_aia, fake_iris1,
+                                fake_aia1, real_iris,
+                                fake_aia2, fake_iris2, savename=str(name))
     # Update learning rates
     generator_scheduler.step()
     discriminator_scheduler.step()
-    # Save models
-    if generator_loss < best_loss:
-        best_loss = generator_loss
-        torch.save(aia_generator.state_dict(), '../callbacks/models/aia_generator.pth')
-        torch.save(iris_generator.state_dict(), '../callbacks/models/iris_generator.pth')
-        torch.save(aia_discriminator.state_dict(), '../callbacks/models/aia_discriminator.pth')
-        torch.save(iris_discriminator.state_dict(), '../callbacks/models/iris_discriminator.pth')

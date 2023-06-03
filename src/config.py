@@ -9,6 +9,7 @@ LAMBDA_IDENTITY = 0 # Weight for identity loss
 LAMBDA_CYCLE = 10 # Weight for cycle loss
 NUM_WORKERS = 4 # Number of workers for dataloader
 ALPHA = 0.3  # times image factor
+SAVE_AFTER_N_SAMP = 100 # Save images after every n samples
 
 # List of transformations to apply to the input images
 TRANSFORM_LIST = [
