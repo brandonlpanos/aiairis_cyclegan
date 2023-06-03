@@ -4,3 +4,4 @@ data
 rubish
 lit
 .DS_Store
+__pycache__
