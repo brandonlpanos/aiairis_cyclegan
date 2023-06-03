@@ -27,9 +27,7 @@ class AIAIRISDataset(Dataset):
 
         iris_im = self.iris_data[idx]
         iris_im = torch.from_numpy(iris_im)
-        iris_im = torch.unsqueeze(iris_im, 0)
         sdo_im = self.aia_data[idx]
         sdo_im = torch.from_numpy(sdo_im)
-        sdo_im = torch.unsqueeze(sdo_im, 0)
 
         return iris_im, sdo_im
