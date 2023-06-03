@@ -136,16 +136,20 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
                 torch.save(aia_discriminator.state_dict(), f'../callbacks/models/{name}_aia_discriminator.pth')
                 torch.save(iris_discriminator.state_dict(), f'../callbacks/models/{name}_iris_discriminator.pth')
                 print(f"Generator loss: {generator_loss:.4f}, Discriminator loss: {discriminator_loss:.4f}")
-                row = [name, cycle_iris_loss, cycle_aia_loss, discriminator_loss, generator_loss, aia_generator_loss, iris_generator_loss]
+                row = [name, cycle_iris_loss.item(), cycle_aia_loss.item(), discriminator_loss.item(), generator_loss.item(), aia_generator_loss.item(), iris_generator_loss.item()]
                 writer.writerow(row)
                 with torch.no_grad():
-                    fake_iris1 = iris_generator(real_aia).detach().numpy().squeeze()
-                    fake_aia1 = aia_generator(fake_iris1).detach().numpy().squeeze()
-                    fake_aia2 = aia_generator(real_iris).detach().numpy().squeeze()
-                    fake_iris2 = iris_generator(fake_aia2).detach().numpy().squeeze()
-                    quick_look_gen(real_aia, fake_iris1,
-                                    fake_aia1, real_iris,
-                                    fake_aia2, fake_iris2, savename=str(name))
+                    fake_iris1 = iris_generator(real_aia)
+                    fake_aia1 = aia_generator(fake_iris1)
+                    fake_aia2 = aia_generator(real_iris)
+                    fake_iris2 = iris_generator(fake_aia2)
+                    quick_look_gen(real_aia.detach().numpy().squeeze(),
+                                    fake_iris1.detach().numpy().squeeze(),
+                                    fake_aia1.detach().numpy().squeeze(), 
+                                    real_iris.detach().numpy().squeeze(),
+                                    fake_aia2.detach().numpy().squeeze(),
+                                    fake_iris2.detach().numpy().squeeze(),
+                                    savename=str(name))
         # Update learning rates
         generator_scheduler.step()
         discriminator_scheduler.step()
