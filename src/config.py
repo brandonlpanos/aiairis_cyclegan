@@ -6,10 +6,12 @@ BATCH_SIZE = 1 # Batch size during training
 NUM_EPOCHS = 200 # Number of epochs to train for
 LEARING_RATE = 0.0002  # keep for first 100 epochs then linearly decay for 100
 LAMBDA_IDENTITY = 0 # Weight for identity loss
-LAMBDA_CYCLE = 10 # Weight for cycle loss
+LAMBDA_CYCLE = 1 # Weight for cycle loss
 NUM_WORKERS = 4 # Number of workers for dataloader
 ALPHA = 0.3  # times image factor
 SAVE_AFTER_N_SAMP = 100 # Save images after every n samples
+MAX_NORM = 1.0 # Max norm for the discriminator and generator weights (clipping)
+N_BLOCKS = 9 # Number of residual blocks in the generator
 
 # List of transformations to apply to the input images
 TRANSFORM_LIST = [

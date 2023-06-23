@@ -36,24 +36,22 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Epoch', 'Cycle IRIS Loss', 'Cycle AIA Loss', 'Discrim Loss', 'Gen Loss', 'Gen AIA Loss', 'Gen IRIS Loss'])
 
+    # Device configuration
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # Load some test images
     aia_test_data = np.load("../data/aia_test.npy", allow_pickle=True)
     iris_test_data = np.load("../data/iris_test.npy", allow_pickle=True)
     ind1 = 176
     ind2 = 11
-    real_aia = torch.from_numpy(aia_test_data[ind1]).unsqueeze(0)
-    real_iris = torch.from_numpy(iris_test_data[ind2]).unsqueeze(0)
-    # Delete the arrays from memory
-    del aia_test_data
-    del iris_test_data
+    real_aia = torch.from_numpy(aia_test_data[ind1]).unsqueeze(0).to(device)
+    real_iris = torch.from_numpy(iris_test_data[ind2]).unsqueeze(0).to(device)
 
-    # Device configuration
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # DataLoaders
     train_loader, test_loader = create_loaders()
     # Load Discriminators and Generators
-    aia_generator = Generator(num_res_blocks=9).to(device)
-    iris_generator = Generator(num_res_blocks=9).to(device)
+    aia_generator = Generator(num_res_blocks=config.N_BLOCKS).to(device)
+    iris_generator = Generator(num_res_blocks=config.N_BLOCKS).to(device)
     aia_discriminator = Discriminator().to(device)
     iris_discriminator = Discriminator().to(device)
     # Losses
@@ -104,6 +102,9 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
                     aia_discriminator_loss + iris_discriminator_loss) / 2
             disc_optimizer.zero_grad()
             discriminator_scalar.scale(discriminator_loss).backward(retain_graph=True)
+            # Apply gradient clipping for the discriminator
+            torch.nn.utils.clip_grad_norm_(aia_discriminator.parameters(), config.MAX_NORM)
+            torch.nn.utils.clip_grad_norm_(iris_discriminator.parameters(), config.MAX_NORM)
             discriminator_scalar.step(disc_optimizer)
             discriminator_scalar.update()
             # Train Generators
@@ -127,6 +128,9 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
                                 cycle_aia_loss*config.LAMBDA_CYCLE)
             gen_optimizer.zero_grad()
             generator_scalar.scale(generator_loss).backward(retain_graph=True)
+            # Apply gradient clipping for the discriminator
+            torch.nn.utils.clip_grad_norm_(aia_generator.parameters(), config.MAX_NORM)
+            torch.nn.utils.clip_grad_norm_(iris_generator.parameters(), config.MAX_NORM)
             generator_scalar.step(gen_optimizer)
             generator_scalar.update()
             # Save models, losses, and create images 
@@ -139,16 +143,18 @@ with open('../callbacks/losses.csv', 'w', newline='') as file:
                 row = [name, cycle_iris_loss.item(), cycle_aia_loss.item(), discriminator_loss.item(), generator_loss.item(), aia_generator_loss.item(), iris_generator_loss.item()]
                 writer.writerow(row)
                 with torch.no_grad():
+                    real_aia = torch.from_numpy(aia_test_data[ind1]).unsqueeze(0).to(device)
+                    real_iris = torch.from_numpy(iris_test_data[ind2]).unsqueeze(0).to(device)
                     fake_iris1 = iris_generator(real_aia)
                     fake_aia1 = aia_generator(fake_iris1)
                     fake_aia2 = aia_generator(real_iris)
                     fake_iris2 = iris_generator(fake_aia2)
-                    quick_look_gen(real_aia.detach().numpy().squeeze(),
-                                    fake_iris1.detach().numpy().squeeze(),
-                                    fake_aia1.detach().numpy().squeeze(), 
-                                    real_iris.detach().numpy().squeeze(),
-                                    fake_aia2.detach().numpy().squeeze(),
-                                    fake_iris2.detach().numpy().squeeze(),
+                    quick_look_gen(real_aia.detach().cpu().numpy().squeeze(),
+                                    fake_iris1.detach().cpu().numpy().squeeze(),
+                                    fake_aia1.detach().cpu().numpy().squeeze(), 
+                                    real_iris.detach().cpu().numpy().squeeze(),
+                                    fake_aia2.detach().cpu().numpy().squeeze(),
+                                    fake_iris2.detach().cpu().numpy().squeeze(),
                                     savename=str(name))
         # Update learning rates
         generator_scheduler.step()
